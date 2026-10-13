@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Por si el mundo se detuviera</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;1,500;1,600&family=Nunito:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg1:#2a1536; --bg2:#5b2a5e; --glow:#ffb68a; --rose:#ff8fa8; --gold:#ffd9a0; --ink:#fff4ec; --soft:#e9cfe0;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{
+  margin:0;height:100%;overflow:hidden;color:var(--ink);
+  font-family:'Nunito',system-ui,sans-serif;
+  background:radial-gradient(120% 90% at 50% 100%,var(--bg2),var(--bg1) 70%);
+  transition:background 2.5s ease;
+}
+body.frozen{background:radial-gradient(120% 90% at 50% 100%,#8a4a63,#3a1c48 70%)}
+canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none}
+.sun{
+  position:fixed;left:50%;bottom:-30vmin;width:90vmin;height:90vmin;transform:translateX(-50%);border-radius:50%;
+  background:radial-gradient(circle,rgba(255,182,138,.55),rgba(255,143,168,.18) 45%,transparent 70%);
+  transition:opacity 2s,transform 3s;opacity:.6;
+}
+body.frozen .sun{opacity:1;transform:translateX(-50%) translateY(-8vmin) scale(1.1)}
+main{position:relative;z-index:2;height:100%;display:grid;place-items:center;padding:24px;text-align:center}
+.screen{position:absolute;inset:0;display:grid;place-content:center;justify-items:center;padding:28px;gap:26px;
+  opacity:0;visibility:hidden;transition:opacity 1.2s ease,visibility 1.2s}
+.screen.on{opacity:1;visibility:visible}
+.for{font-size:1rem;color:var(--soft);letter-spacing:.04em;margin:0}
+h1{font-family:'Cormorant Garamond',Georgia,serif;font-weight:500;font-style:italic;
+  font-size:clamp(2.4rem,9vw,5rem);line-height:1.08;margin:0;max-width:16ch;text-wrap:balance}
+h1 em{font-style:normal;color:var(--gold)}
+.btn{
+  font:600 1rem 'Nunito',sans-serif;color:#3a1c48;background:linear-gradient(135deg,var(--gold),var(--rose));
+  border:0;border-radius:999px;padding:15px 34px;cursor:pointer;
+  box-shadow:0 8px 30px rgba(255,143,168,.35);transition:transform .2s,box-shadow .2s;
+}
+.btn:hover{transform:translateY(-2px);box-shadow:0 12px 36px rgba(255,143,168,.5)}
+.btn:focus-visible,.dot:focus-visible,.nav:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
+.quote{
+  font-family:'Cormorant Garamond',Georgia,serif;font-style:italic;font-weight:500;
+  font-size:clamp(1.7rem,6vw,3.1rem);line-height:1.25;max-width:20ch;margin:0;text-wrap:balance;
+  min-height:6.2em;display:grid;place-items:center;
+}
+.quote span{display:block;animation:rise 1.1s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(14px);filter:blur(6px)}to{opacity:1;transform:none;filter:none}}
+.controls{display:flex;align-items:center;gap:18px}
+.nav{background:none;border:1px solid rgba(255,244,236,.35);color:var(--ink);width:46px;height:46px;border-radius:50%;
+  font-size:1.2rem;cursor:pointer;transition:background .2s}
+.nav:hover{background:rgba(255,244,236,.12)}
+.nav[disabled]{opacity:.25;cursor:default}
+.dots{display:flex;gap:10px}
+.dot{width:10px;height:10px;border-radius:50%;border:0;padding:0;background:rgba(255,244,236,.3);cursor:pointer;transition:all .3s}
+.dot.on{background:var(--gold);transform:scale(1.35)}
+.hint{font-size:.85rem;color:var(--soft);margin:0}
+.smile{font-size:3rem;margin:0;animation:beat 2.4s ease-in-out infinite}
+@keyframes beat{50%{transform:scale(1.12)}}
+@media (prefers-reduced-motion:reduce){.quote span{animation:none}.smile{animation:none}body,.sun,.screen{transition:none}}
+</style>
+</head>
+<body>
+<canvas id="c" aria-hidden="true"></canvas>
+<div class="sun" aria-hidden="true"></div>
+
+<main>
+  <section class="screen on" id="intro">
+    <p class="for" id="para"></p>
+    <h1>Por si el mundo se detuviera, que sea justo cuando <em>estás sonriendo</em></h1>
+    <button class="btn" id="go">Detener el mundo</button>
+  </section>
+
+  <section class="screen" id="frases">
+    <p class="quote" id="q" aria-live="polite"></p>
+    <div class="controls">
+      <button class="nav" id="prev" aria-label="Anterior">&#8592;</button>
+      <div class="dots" id="dots"></div>
+      <button class="nav" id="next" aria-label="Siguiente">&#8594;</button>
+    </div>
+    <p class="hint">Desliza o toca las flechas</p>
+  </section>
+
+  <section class="screen" id="fin">
+    <p class="smile" aria-hidden="true">&#9829;</p>
+    <h1>Y ahora, sonríe. Así, justo así.</h1>
+    <button class="btn" id="again">Volver a empezar</button>
+  </section>
+</main>
+
+<script>
+// Cambia aquí su nombre (déjalo vacío para no mostrarlo)
+const NAME = "";
+
+const FRASES = [
+  "Nunca te rindas.",
+  "Sigue luchando por tus sueños y construyendo ese futuro que tanto deseas.",
+  "Recuerda que hasta las obras más bonitas necesitan tiempo, paciencia y esfuerzo.",
+  "Confía en ti. Nunca dejes de creer en lo que eres capaz de lograr."
+];
+
+const $ = id => document.getElementById(id);
+$('para').textContent = NAME ? 'Para ' + NAME : 'Para ti';
+
+/* Pétalos cayendo */
+const cv = $('c'), ctx = cv.getContext('2d');
+let W, H, frozen = false, speed = 1;
+const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function size(){ const d = devicePixelRatio || 1; W = cv.width = innerWidth*d; H = cv.height = innerHeight*d; }
+addEventListener('resize', size); size();
+const cols = ['#ff8fa8','#ffb68a','#ffd9a0','#f7b7d2'];
+const petals = Array.from({length:55}, () => ({
+  x:Math.random(), y:Math.random(), r:5+Math.random()*9, v:.0006+Math.random()*.0011,
+  s:Math.random()*6.28, w:.4+Math.random()*1.2, c:cols[Math.random()*4|0], a:.45+Math.random()*.5
+}));
+function draw(t){
+  ctx.clearRect(0,0,W,H);
+  const d = devicePixelRatio || 1;
+  speed += ((frozen?0:1) - speed) * .03;
+  for(const p of petals){
+    if(!still){
+      p.y += p.v*speed; p.s += .01*speed;
+      if(p.y > 1.05){ p.y = -.05; p.x = Math.random(); }
+    }
+    const x = (p.x + Math.sin(p.s)*.02*p.w)*W, y = p.y*H, r = p.r*d;
+    ctx.save(); ctx.translate(x,y); ctx.rotate(p.s*p.w);
+    ctx.globalAlpha = p.a; ctx.fillStyle = p.c;
+    ctx.shadowColor = p.c; ctx.shadowBlur = frozen ? 14*d : 0;
+    ctx.beginPath(); ctx.ellipse(0,0,r,r*.55,0,0,6.283); ctx.fill();
+    ctx.restore();
+  }
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+/* Pantallas */
+const screens = ['intro','frases','fin'].map($);
+function show(id){ screens.forEach(s => s.classList.toggle('on', s.id === id)); }
+
+let i = 0;
+const dots = $('dots');
+FRASES.forEach((_, n) => {
+  const b = document.createElement('button');
+  b.className = 'dot'; b.setAttribute('aria-label', 'Frase ' + (n+1));
+  b.onclick = () => set(n); dots.appendChild(b);
+});
+function set(n){
+  i = n;
+  const q = $('q'); q.innerHTML = '';
+  const s = document.createElement('span'); s.textContent = FRASES[i]; q.appendChild(s);
+  [...dots.children].forEach((d, k) => d.classList.toggle('on', k === i));
+  $('prev').disabled = i === 0;
+}
+function next(){ i < FRASES.length-1 ? set(i+1) : show('fin'); }
+function prev(){ if(i > 0) set(i-1); }
+
+$('go').onclick = () => {
+  frozen = true; document.body.classList.add('frozen');
+  show('intro'); screens[0].classList.remove('on');
+  setTimeout(() => { set(0); show('frases'); }, 1600);
+};
+$('next').onclick = next;
+$('prev').onclick = prev;
+$('again').onclick = () => {
+  frozen = false; document.body.classList.remove('frozen'); show('intro');
+};
+addEventListener('keydown', e => {
+  if(!$('frases').classList.contains('on')) return;
+  if(e.key === 'ArrowRight') next(); if(e.key === 'ArrowLeft') prev();
+});
+let x0 = null;
+addEventListener('touchstart', e => x0 = e.touches[0].clientX, {passive:true});
+addEventListener('touchend', e => {
+  if(x0 === null || !$('frases').classList.contains('on')) return;
+  const dx = e.changedTouches[0].clientX - x0;
+  if(Math.abs(dx) > 50) dx < 0 ? next() : prev();
+  x0 = null;
+}, {passive:true});
+</script>
+</body>
+</html>
